@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OmniList | Obsidian Anime Tracker</title>
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Google Fonts: Inter & Outfit -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        display: ['Outfit', 'sans-serif'],
+                    },
+                    colors: {
+                        obsidian: {
+                            950: '#050608',
+                            900: '#0a0c10',
+                            800: '#12151e',
+                            700: '#1a1e2b',
+                            600: '#262c3d',
+                            border: 'rgba(255, 255, 255, 0.08)',
+                            hover: 'rgba(255, 255, 255, 0.14)'
+                        },
+                        accent: '#94a3b8', /* Muted Slate Accent */
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        .glass-panel {
+            background: rgba(10, 12, 16, 0.75);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            box-shadow: 0 12px 36px -8px rgba(0, 0, 0, 0.7);
+        }
+
+        .glass-card {
+            background: rgba(18, 21, 30, 0.6);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .glass-card:hover {
+            background: rgba(26, 30, 43, 0.8);
+            border-color: rgba(148, 163, 184, 0.3); /* Slate hover */
+            box-shadow: 0 16px 40px -12px rgba(0, 0, 0, 0.9), 0 0 20px rgba(148, 163, 184, 0.05);
+            transform: translateY(-4px);
+        }
+
+        .glass-input {
+            background: rgba(5, 6, 8, 0.7);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #f1f5f9;
+        }
+
+        .glass-input:focus {
+            border-color: rgba(148, 163, 184, 0.5);
+            box-shadow: 0 0 16px rgba(148, 163, 184, 0.1);
+            outline: none;
+        }
+
+        /* Subtle monochromatic ambient backgrounds */
+        .ambient-blob-1 {
+            position: fixed;
+            top: -20%;
+            left: 10%;
+            width: 700px;
+            height: 700px;
+            background: radial-gradient(circle, rgba(148, 163, 184, 0.04) 0%, rgba(0,0,0,0) 70%);
+            filter: blur(100px);
+            z-index: -1;
+            pointer-events: none;
+        }
+
+        .ambient-blob-2 {
+            position: fixed;
+            bottom: -20%;
+            right: 10%;
+            width: 800px;
+            height: 800px;
+            background: radial-gradient(circle, rgba(255, 255, 255, 0.03) 0%, rgba(0,0,0,0) 70%);
+            filter: blur(120px);
+            z-index: -1;
+            pointer-events: none;
+        }
+
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 9999px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(148, 163, 184, 0.4); }
+
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        .loader {
+            border: 3px solid rgba(255,255,255,0.1);
+            border-top: 3px solid #94a3b8;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="bg-[#050608] text-slate-300 font-sans min-h-screen flex flex-col selection:bg-slate-800 selection:text-white relative overflow-x-hidden">
+
+    <div class="ambient-blob-1"></div>
+    <div class="ambient-blob-2"></div>
+
+    <header class="sticky top-0 z-40 w-full glass-panel border-b border-obsidian-border px-4 lg:px-8 py-3.5">
+        <div class="max-w-7xl mx-auto flex items-center justify-between gap-4">
+            <!-- Brand Logo -->
+            <div class="flex items-center gap-3 cursor-pointer" onclick="resetView()">
+                <div class="w-10 h-10 rounded-xl bg-obsidian-800 border border-obsidian-border flex items-center justify-center text-slate-300 shadow-lg">
+                    <i data-lucide="compass" class="w-5 h-5"></i>
+                </div>
+                <div>
+                    <span class="font-display font-bold text-xl tracking-tight text-white block leading-none">
+                        Omni<span class="text-slate-400">List</span>
+                    </span>
+                    <span class="text-[9px] uppercase tracking-widest text-slate-500 font-semibold block mt-0.5">Anime Tracker</span>
+                </div>
+            </div>
+
+            <!-- Global Search Input -->
+            <div class="flex-1 max-w-lg mx-4 relative hidden md:block">
+                <i data-lucide="search" class="w-4 h-4 absolute left-3.5 top-3 text-slate-500"></i>
+                <input type="text" id="globalSearch" onkeydown="handleSearchKey(event)" placeholder="Search AniList..." class="w-full glass-input rounded-xl py-2 pl-10 pr-10 text-sm placeholder:text-slate-500 transition-all">
+                <button id="clearSearchBtn" onclick="clearSearch()" class="hidden absolute right-3 top-2.5 text-slate-500 hover:text-slate-300">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+
+            <!-- Navigation Actions -->
+            <div class="flex items-center gap-1 bg-obsidian-900/90 p-1 rounded-xl border border-obsidian-border">
+                <button class="px-4 py-1.5 rounded-lg text-xs font-semibold transition-all text-white bg-obsidian-700 border border-slate-700 shadow-sm flex items-center gap-1.5">
+                    <i data-lucide="layout-grid" class="w-4 h-4 text-slate-300"></i>Discover
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Mobile Search Bar -->
+    <div class="md:hidden px-4 pt-3 relative">
+        <i data-lucide="search" class="w-4 h-4 absolute left-7 top-6 text-slate-500"></i>
+        <input type="text" id="mobileSearch" onkeydown="handleSearchKey(event, true)" placeholder="Search anime..." class="w-full glass-input rounded-xl py-2.5 pl-10 pr-4 text-sm placeholder:text-slate-500">
+    </div>
+
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 lg:px-8 py-6">
+
+        <!-- Search Results Display Area -->
+        <div id="searchResultsSection" class="hidden space-y-6">
+            <div class="glass-panel rounded-2xl p-4 border border-obsidian-border flex items-center justify-between">
+                <p class="text-sm text-slate-300">Search results for "<span id="searchQueryTerm" class="text-white font-bold"></span>"</p>
+                <div id="searchLoader" class="hidden loader border-t-slate-400 w-4 h-4"></div>
+                <button onclick="clearSearch()" class="text-xs text-slate-400 hover:text-white transition-colors">Clear Search</button>
+            </div>
+            <div id="searchResultsGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4"></div>
+        </div>
+
+        <!-- DISCOVER SHELVES -->
+        <div id="shelvesContainer" class="space-y-12 transition-opacity duration-300">
+
+            <!-- SHELF 1: Recommendations (Pre-defined requested anime) -->
+            <section class="space-y-4">
+                <div class="flex items-center justify-between border-b border-white/5 pb-2">
+                    <div class="flex items-center gap-2">
+                        <i data-lucide="star" class="w-5 h-5 text-slate-300"></i>
+                        <h3 class="font-display font-bold text-xl text-white tracking-wide">Must Watch Recommendations</h3>
+                    </div>
+                </div>
+                <div id="shelf-recommendations" class="flex gap-5 overflow-x-auto no-scrollbar pb-4 pt-1 snap-x">
+                    <div class="py-10 w-full flex justify-center"><div class="loader"></div></div>
+                </div>
+            </section>
+
+            <!-- SHELF 2: Trending / Ongoing -->
+            <section class="space-y-4">
+                <div class="flex items-center justify-between border-b border-white/5 pb-2">
+                    <div class="flex items-center gap-2">
+                        <i data-lucide="flame" class="w-5 h-5 text-orange-400/80"></i>
+                        <h3 class="font-display font-bold text-xl text-white tracking-wide">Trending & Ongoing</h3>
+                    </div>
+                </div>
+                <div id="shelf-trending" class="flex gap-5 overflow-x-auto no-scrollbar pb-4 pt-1 snap-x">
+                    <div class="py-10 w-full flex justify-center"><div class="loader"></div></div>
+                </div>
+            </section>
+
+            <!-- SHELF 3: All-Time Popular -->
+            <section class="space-y-4">
+                <div class="flex items-center justify-between border-b border-white/5 pb-2">
+                    <div class="flex items-center gap-2">
+                        <i data-lucide="trending-up" class="w-5 h-5 text-blue-400/80"></i>
+                        <h3 class="font-display font-bold text-xl text-white tracking-wide">All-Time Popular</h3>
+                    </div>
+                </div>
+                <div id="shelf-popular" class="flex gap-5 overflow-x-auto no-scrollbar pb-4 pt-1 snap-x">
+                    <div class="py-10 w-full flex justify-center"><div class="loader"></div></div>
+                </div>
+            </section>
+
+        </div>
+    </main>
+
+    <!-- Detail Modal -->
+    <div id="detailModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#050608]/90 backdrop-blur-xl hidden transition-opacity duration-300 opacity-0" style="opacity: 0;">
+        <div class="glass-panel w-full max-w-4xl max-h-[95vh] overflow-y-auto overflow-x-hidden rounded-2xl border border-white/10 p-0 relative text-slate-300 shadow-2xl flex flex-col no-scrollbar transform scale-95 transition-transform duration-300" id="modalContainer">
+            <button onclick="closeDetailModal()" class="absolute top-4 right-4 w-9 h-9 rounded-full bg-black/60 hover:bg-black/90 border border-white/10 text-white flex items-center justify-center transition-all z-20 backdrop-blur-md">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+            <div id="modalContent" class="flex-1 flex flex-col">
+                <!-- Modal content injected via JS -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Store fetched anime globally to avoid re-fetching details if already clicked
+        const mediaCache = new Map();
+
+        // GraphQL endpoint for AniList
+        const ANILIST_URL = 'https://graphql.anilist.co';
+
+        // Initialize Icons
+        window.addEventListener('DOMContentLoaded', () => {
+            lucide.createIcons();
+            loadAllShelves();
+        });
+
+        // 1. Dynamic SVG Fallback Generator
+        function getSVGPosterPlaceholder(title) {
+            const safeTitle = title.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+            let hash = 0;
+            for (let i = 0; i < title.length; i++) hash = title.charCodeAt(i) + ((hash << 5) - hash);
+            const hue = Math.abs(hash % 360);
+            
+            const svg = `
+                <svg xmlns="http://www.w3.org/2000/svg" width="400" height="600" viewBox="0 0 400 600">
+                    <defs>
+                        <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" style="stop-color:hsl(${hue}, 20%, 20%);stop-opacity:1" />
+                            <stop offset="100%" style="stop-color:#0a0c10;stop-opacity:1" />
+                        </linearGradient>
+                    </defs>
+                    <rect width="100%" height="100%" fill="url(#bgGrad)"/>
+                    <rect x="20" y="20" width="360" height="560" rx="16" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="2"/>
+                    <circle cx="200" cy="240" r="60" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>
+                    <text x="200" y="260" fill="#e2e8f0" font-family="system-ui, sans-serif" font-size="64" font-weight="800" text-anchor="middle">${title.charAt(0).toUpperCase()}</text>
+                    <text x="200" y="440" fill="#ffffff" font-family="system-ui, sans-serif" font-size="28" font-weight="700" text-anchor="middle" font-style="italic">
+                        <tspan x="200" dy="0">${safeTitle.length > 20 ? safeTitle.substring(0, 20) : safeTitle}</tspan>
+                        ${safeTitle.length > 20 ? `<tspan x="200" dy="35">${safeTitle.substring(20, 40)}${safeTitle.length > 40 ? '...' : ''}</tspan>` : ''}
+                    </text>
+                    <text x="200" y="520" fill="#94a3b8" font-family="system-ui, sans-serif" font-size="14" font-weight="600" letter-spacing="4" text-anchor="middle">ANIME</text>
+                </svg>
+            `;
+            return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg.trim())}`;
+        }
+
+        // 2. Generic Fetch Function
+        async function fetchAnilist(variables) {
+            const query = `
+                query ($page: Int, $perPage: Int, $sort: [MediaSort], $search: String, $id_in: [Int], $status: MediaStatus) {
+                    Page (page: $page, perPage: $perPage) {
+                        media (type: ANIME, sort: $sort, search: $search, id_in: $id_in, status: $status) {
+                            id
+                            title { romaji english userPreferred }
+                            coverImage { extraLarge large color }
+                            bannerImage
+                            description(asHtml: false)
+                            episodes
+                            averageScore
+                            status
+                            format
+                            genres
+                            seasonYear
+                        }
+                    }
+                }
+            `;
+
+            try {
+                const response = await fetch(ANILIST_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                    body: JSON.stringify({ query, variables })
+                });
+                const data = await response.json();
+                
+                // Cache results
+                if (data.data?.Page?.media) {
+                    data.data.Page.media.forEach(anime => mediaCache.set(anime.id, anime));
+                }
+                
+                return data.data?.Page?.media || [];
+            } catch (error) {
+                console.error("Error fetching AniList:", error);
+                return [];
+            }
+        }
+
+        // 3. Load Shelves Data
+        async function loadAllShelves() {
+            // IDs requested: Cyberpunk (131586), Tensura (101280), MHA (21459), Chainsaw Man (127230), Frieren (154587)
+            const recommendationsVars = { page: 1, perPage: 10, id_in: [131586, 101280, 21459, 127230, 154587] };
+            const trendingVars = { page: 1, perPage: 15, sort: ["TRENDING_DESC"], status: "RELEASING" };
+            const popularVars = { page: 1, perPage: 15, sort: ["POPULARITY_DESC"] };
+
+            // Fetch in parallel for speed
+            const [recs, trending, popular] = await Promise.all([
+                fetchAnilist(recommendationsVars),
+                fetchAnilist(trendingVars),
+                fetchAnilist(popularVars)
+            ]);
+
+            renderShelf('shelf-recommendations', recs);
+            renderShelf('shelf-trending', trending);
+            renderShelf('shelf-popular', popular);
+        }
+
+        // 4. Render UI Elements
+        function renderShelf(containerId, mediaArray) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+            container.innerHTML = '';
+
+            if (mediaArray.length === 0) {
+                container.innerHTML = `<div class="text-sm text-slate-500 py-6 px-4">Failed to load content.</div>`;
+                return;
+            }
+
+            mediaArray.forEach(anime => {
+                container.appendChild(createMediaCard(anime));
+            });
+        }
+
+        function createMediaCard(anime) {
+            const title = anime.title.english || anime.title.romaji || "Unknown Title";
+            const cover = anime.coverImage?.extraLarge || anime.coverImage?.large;
+            const fallbackSVG = getSVGPosterPlaceholder(title);
+            const scoreColor = anime.averageScore > 75 ? 'text-green-400' : (anime.averageScore > 50 ? 'text-yellow-400' : 'text-slate-400');
+
+            const card = document.createElement('div');
+            card.className = 'glass-card w-[150px] sm:w-[170px] rounded-xl overflow-hidden cursor-pointer flex flex-col group relative flex-shrink-0 snap-start border-obsidian-border';
+            card.onclick = () => openDetailModal(anime.id);
+
+            card.innerHTML = `
+                <div class="relative aspect-[2/3] overflow-hidden bg-obsidian-950 border-b border-white/5">
+                    <img src="${cover}" alt="${title}" loading="lazy" 
+                         onerror="this.onerror=null; this.src='${fallbackSVG}';" 
+                         class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out">
+                    
+                    <div class="absolute inset-0 bg-gradient-to-t from-[#050608] via-transparent to-transparent opacity-90"></div>
+                    
+                    <div class="absolute top-2 left-2 right-2 flex justify-between">
+                        <span class="text-[9px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded-sm bg-black/60 backdrop-blur-md text-slate-300 border border-white/10 shadow-lg">${anime.format || 'TV'}</span>
+                        ${anime.averageScore ? `<span class="text-[10px] font-bold px-1.5 py-0.5 rounded-sm bg-black/60 backdrop-blur-md ${scoreColor} border border-white/10 shadow-lg flex items-center gap-0.5"><i data-lucide="star" class="w-2.5 h-2.5"></i>${anime.averageScore}</span>` : ''}
+                    </div>
+                </div>
+
+                <div class="p-3 flex-1 flex flex-col justify-end z-10 -mt-8 bg-gradient-to-t from-[#12151e] via-[#12151e]/80 to-transparent">
+                    <h4 class="font-bold text-white text-[13px] leading-snug line-clamp-2 group-hover:text-slate-300 transition-colors tracking-tight shadow-black drop-shadow-md">${title}</h4>
+                    <p class="text-[10px] text-slate-400 mt-1 line-clamp-1">${anime.seasonYear || 'TBA'} • ${anime.genres?.[0] || 'Anime'}</p>
+                </div>
+            `;
+            return card;
+        }
+
+        // 5. Search Logic
+        async function handleSearchKey(event, isMobile = false) {
+            if (event.key === 'Enter') {
+                const inputId = isMobile ? 'mobileSearch' : 'globalSearch';
+                const query = document.getElementById(inputId).value.trim();
+                
+                if (!query) {
+                    clearSearch();
+                    return;
+                }
+
+                document.getElementById('shelvesContainer').classList.add('hidden');
+                document.getElementById('searchResultsSection').classList.remove('hidden');
+                document.getElementById('searchQueryTerm').innerText = query;
+                document.getElementById('searchLoader').classList.remove('hidden');
+                document.getElementById('clearSearchBtn').classList.remove('hidden');
+                
+                const grid = document.getElementById('searchResultsGrid');
+                grid.innerHTML = ''; // Clear old
+
+                // Fetch search results
+                const results = await fetchAnilist({ page: 1, perPage: 24, search: query, sort: ["POPULARITY_DESC"] });
+                document.getElementById('searchLoader').classList.add('hidden');
+
+                if (results.length === 0) {
+                    grid.innerHTML = `<div class="col-span-full py-12 text-center text-sm text-slate-500 glass-panel rounded-xl">No anime found matching "${query}".</div>`;
+                    return;
+                }
+
+                results.forEach(anime => {
+                    grid.appendChild(createMediaCard(anime));
+                });
+                lucide.createIcons();
+            }
+        }
+
+        function clearSearch() {
+            document.getElementById('globalSearch').value = '';
+            document.getElementById('mobileSearch').value = '';
+            document.getElementById('clearSearchBtn').classList.add('hidden');
+            document.getElementById('searchResultsSection').classList.add('hidden');
+            document.getElementById('shelvesContainer').classList.remove('hidden');
+        }
+
+        function resetView() {
+            clearSearch();
+            window.scrollTo({top: 0, behavior: 'smooth'});
+        }
+
+        // 6. Detail Modal Logic
+        function openDetailModal(id) {
+            const anime = mediaCache.get(id);
+            if (!anime) return;
+
+            const modal = document.getElementById('detailModal');
+            const container = document.getElementById('modalContainer');
+            const content = document.getElementById('modalContent');
+            
+            const title = anime.title.english || anime.title.romaji || "Unknown Title";
+            const cover = anime.coverImage?.extraLarge || anime.coverImage?.large;
+            const banner = anime.bannerImage;
+            const fallbackSVG = getSVGPosterPlaceholder(title);
+            
+            // Clean up synopsis HTML tags returned sometimes by Anilist description string
+            let synopsis = anime.description || "No synopsis available.";
+            synopsis = synopsis.replace(/<br><br>/g, '\n\n').replace(/<br>/g, '\n').replace(/<i>/g, '').replace(/<\/i>/g, '');
+
+            // Determine banner style (use cover blurred if no banner exists)
+            let bannerHTML = '';
+            if (banner) {
+                bannerHTML = `<div class="w-full h-48 md:h-64 relative bg-obsidian-950 border-b border-white/5">
+                                <img src="${banner}" class="w-full h-full object-cover opacity-60">
+                                <div class="absolute inset-0 bg-gradient-to-t from-obsidian-900 to-transparent"></div>
+                              </div>`;
+            } else {
+                bannerHTML = `<div class="w-full h-32 md:h-48 relative overflow-hidden bg-obsidian-950 border-b border-white/5">
+                                <img src="${cover}" onerror="this.src='${fallbackSVG}'" class="w-full h-full object-cover opacity-20 blur-xl scale-110">
+                                <div class="absolute inset-0 bg-gradient-to-t from-obsidian-900 to-transparent"></div>
+                              </div>`;
+            }
+
+            content.innerHTML = `
+                ${bannerHTML}
+                <div class="px-6 pb-8 md:px-10 relative -mt-16 md:-mt-24 flex flex-col md:flex-row gap-6 md:gap-10">
+                    <!-- Left Column: Poster -->
+                    <div class="flex-shrink-0 w-32 md:w-56 mx-auto md:mx-0 z-10 shadow-2xl rounded-xl overflow-hidden border border-white/10 bg-obsidian-950">
+                        <img src="${cover}" onerror="this.onerror=null;this.src='${fallbackSVG}';" class="w-full aspect-[2/3] object-cover">
+                    </div>
+                    
+                    <!-- Right Column: Info -->
+                    <div class="flex-1 flex flex-col justify-end pt-4 md:pt-16 z-10">
+                        <div class="flex flex-wrap gap-2 mb-3 justify-center md:justify-start">
+                            <span class="text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded bg-slate-800 text-slate-300 border border-slate-700">${anime.format || 'TV'}</span>
+                            <span class="text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded bg-slate-800 text-slate-300 border border-slate-700 flex items-center gap-1">
+                                <i data-lucide="star" class="w-3 h-3 text-yellow-400"></i> ${anime.averageScore ? anime.averageScore + '%' : 'N/A'}
+                            </span>
+                            <span class="text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded bg-slate-800 text-slate-300 border border-slate-700">${anime.status.replace(/_/g, ' ')}</span>
+                        </div>
+                        
+                        <h2 class="font-display font-bold text-3xl md:text-4xl text-white mb-1 tracking-tight text-center md:text-left drop-shadow-md">${title}</h2>
+                        ${anime.title.romaji && anime.title.romaji !== title ? `<p class="text-sm text-slate-400 mb-4 text-center md:text-left">${anime.title.romaji}</p>` : ''}
+                        
+                        <p class="text-sm text-slate-400 font-mono mb-6 text-center md:text-left border-b border-white/10 pb-4">
+                            ${anime.seasonYear || 'TBA'} • ${anime.episodes ? anime.episodes + ' Episodes' : 'Ongoing'} • ${anime.genres?.join(', ') || 'Various'}
+                        </p>
+                        
+                        <div class="mb-8">
+                            <h4 class="text-xs font-bold text-slate-300 uppercase tracking-widest mb-3 flex items-center justify-center md:justify-start gap-2">
+                                <i data-lucide="book-open" class="w-4 h-4"></i> Synopsis
+                            </h4>
+                            <p class="text-sm text-slate-400 leading-relaxed whitespace-pre-line">${synopsis}</p>
+                        </div>
+
+                        <div class="p-4 rounded-xl bg-obsidian-950 border border-white/5 flex flex-col sm:flex-row items-center justify-between gap-4">
+                            <div>
+                                <label class="text-xs text-slate-500 uppercase tracking-widest block mb-1 font-bold">Personal Tracking</label>
+                                <p class="text-[11px] text-slate-400">Add to your local watch lists.</p>
+                            </div>
+                            <div class="flex gap-2 w-full sm:w-auto">
+                                <select class="w-full sm:w-48 glass-input rounded-lg p-2.5 text-sm bg-obsidian-900 border border-white/10 cursor-pointer">
+                                    <option value="" disabled selected>Select Status...</option>
+                                    <option value="Watching">Watching</option>
+                                    <option value="Completed">Completed</option>
+                                    <option value="Plan to Watch">Plan to Watch</option>
+                                    <option value="Dropped">Dropped</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Show modal and animate in
+            modal.classList.remove('hidden');
+            // Small delay to allow display:block to apply before animating opacity
+            setTimeout(() => {
+                modal.style.opacity = '1';
+                container.classList.remove('scale-95');
+                container.classList.add('scale-100');
+                lucide.createIcons(); // Re-init icons inside modal
+            }, 10);
+            
+            // Prevent body scroll
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeDetailModal() {
+            const modal = document.getElementById('detailModal');
+            const container = document.getElementById('modalContainer');
+            
+            // Animate out
+            modal.style.opacity = '0';
+            container.classList.remove('scale-100');
+            container.classList.add('scale-95');
+            
+            setTimeout(() => {
+                modal.classList.add('hidden');
+                document.body.style.overflow = ''; // Restore body scroll
+            }, 300); // Matches transition duration
+        }
+
+        // Close modal on outside click
+        document.getElementById('detailModal').addEventListener('click', (e) => {
+            if (e.target.id === 'detailModal') {
+                closeDetailModal();
+            }
+        });
+    </script>
+</body>
+</html>
